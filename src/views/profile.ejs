@@ -1,0 +1,48 @@
+<%- include('partials/head', { title: 'Editar Perfil | DataPilot MVC' }) %>
+
+<header class="topbar">
+  <div class="brand"><i class="bi bi-layers-half"></i> DataPilot MVC</div>
+  <nav>
+    <a href="/" class="btn btn-ghost"><i class="bi bi-grid"></i> Dashboard</a>
+    <form method="POST" action="/logout" class="inline-form">
+      <button class="btn btn-danger" type="submit"><i class="bi bi-box-arrow-left"></i> Salir</button>
+    </form>
+  </nav>
+</header>
+
+<main class="container narrow">
+  <section class="panel">
+    <h2><i class="bi bi-person-gear"></i> Editar perfil</h2>
+
+    <% if (error) { %>
+      <div class="alert error"><i class="bi bi-exclamation-octagon"></i> <%= error %></div>
+    <% } %>
+    <% if (success) { %>
+      <div class="alert success"><i class="bi bi-check-circle"></i> <%= success %></div>
+    <% } %>
+
+    <form method="POST" action="/profile" class="grid-form two-cols">
+      <label>
+        Username
+        <input type="text" name="username" value="<%= user.username || '' %>" required />
+      </label>
+      <label>
+        Nombres
+        <input type="text" name="firstName" value="<%= user.firstName || '' %>" />
+      </label>
+      <label>
+        Apellidos
+        <input type="text" name="lastName" value="<%= user.lastName || '' %>" />
+      </label>
+      <label>
+        Nueva contrasena (opcional)
+        <input type="password" name="password" />
+      </label>
+      <button class="btn btn-primary" type="submit">
+        <i class="bi bi-floppy"></i> Guardar cambios
+      </button>
+    </form>
+  </section>
+</main>
+
+<%- include('partials/footer') %>
