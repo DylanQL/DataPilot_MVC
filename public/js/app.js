@@ -16,6 +16,10 @@ const recordsTable = document.getElementById('recordsTable');
 const pageInfo = document.getElementById('pageInfo');
 const filtersContainer = document.getElementById('filtersContainer');
 const toast = document.getElementById('toast');
+const deleteModal = document.getElementById('deleteModal');
+const deleteModalText = document.getElementById('deleteModalText');
+const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
 function showToast(message, type = 'success') {
   toast.className = `show ${type}`;
@@ -23,6 +27,38 @@ function showToast(message, type = 'success') {
   setTimeout(() => {
     toast.className = '';
   }, 2500);
+}
+
+function openDeleteModal(tableName) {
+  return new Promise((resolve) => {
+    deleteModalText.textContent = `Se eliminara la tabla ${tableName}. Esta accion no se puede deshacer.`;
+    deleteModal.classList.add('open');
+    deleteModal.setAttribute('aria-hidden', 'false');
+
+    const onConfirm = () => closeModal(true);
+    const onCancel = () => closeModal(false);
+    const onBackdrop = (event) => {
+      if (event.target === deleteModal) closeModal(false);
+    };
+    const onEsc = (event) => {
+      if (event.key === 'Escape') closeModal(false);
+    };
+
+    function closeModal(accepted) {
+      deleteModal.classList.remove('open');
+      deleteModal.setAttribute('aria-hidden', 'true');
+      confirmDeleteBtn.removeEventListener('click', onConfirm);
+      cancelDeleteBtn.removeEventListener('click', onCancel);
+      deleteModal.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onEsc);
+      resolve(accepted);
+    }
+
+    confirmDeleteBtn.addEventListener('click', onConfirm);
+    cancelDeleteBtn.addEventListener('click', onCancel);
+    deleteModal.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onEsc);
+  });
 }
 
 async function request(url, options = {}) {
@@ -288,7 +324,7 @@ function setupDeleteTable() {
     const tableName = form.tableName.value;
     if (!tableName) return;
 
-    const ok = window.confirm(`Se eliminara la tabla ${tableName}. Esta accion no se puede deshacer.`);
+    const ok = await openDeleteModal(tableName);
     if (!ok) return;
 
     try {

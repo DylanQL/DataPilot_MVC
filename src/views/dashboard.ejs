@@ -120,6 +120,21 @@
 
 <div id="toast"></div>
 
+<div id="deleteModal" class="modal-overlay" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+    <div class="modal-icon"><i class="bi bi-exclamation-triangle"></i></div>
+    <h3 id="deleteModalTitle">Confirmar eliminacion</h3>
+    <p id="deleteModalText" class="modal-text"></p>
+    <div class="modal-actions">
+      <button id="cancelDeleteBtn" type="button" class="btn btn-ghost">Cancelar</button>
+      <button id="confirmDeleteBtn" type="button" class="btn btn-danger">
+        <i class="bi bi-trash3"></i>
+        Si, eliminar
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
   window.__APP_DATA__ = {
     tables: <%- JSON.stringify(tables) %>,
