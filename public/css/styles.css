@@ -64,6 +64,14 @@ h4 {
   gap: 10px;
 }
 
+.register-actions-one .register-actions-grid {
+  grid-template-columns: 1fr;
+}
+
+.register-actions-one #sendCodeBtn {
+  width: 100%;
+}
+
 .tiny {
   margin: 0;
   font-size: 0.85rem;

@@ -7,7 +7,6 @@ const state = {
 };
 
 const sendCodeBtn = document.getElementById('sendCodeBtn');
-const haveCodeBtn = document.getElementById('haveCodeBtn');
 const cooldownInfo = document.getElementById('cooldownInfo');
 const verifyCodeForm = document.getElementById('verifyCodeForm');
 const verificationCode = document.getElementById('verificationCode');
@@ -88,7 +87,6 @@ sendCodeBtn.addEventListener('click', async () => {
 
     const data = await request('/register/send-code', { email: state.email });
     showMessage(`${data.message} Expira en 5 minutos.`);
-    verifyCodeForm.classList.remove('hidden');
     verificationCode.focus();
     state.isSending = false;
     startCooldown(data.cooldownRemainingSeconds || 60);
@@ -99,11 +97,6 @@ sendCodeBtn.addEventListener('click', async () => {
     }
     showMessage(error.message, 'error');
   }
-});
-
-haveCodeBtn.addEventListener('click', () => {
-  verifyCodeForm.classList.remove('hidden');
-  verificationCode.focus();
 });
 
 verifyCodeForm.addEventListener('submit', async (event) => {
