@@ -7,10 +7,11 @@ const state = {
 };
 
 const sendCodeBtn = document.getElementById('sendCodeBtn');
-const cooldownInfo = document.getElementById('cooldownInfo');
 const verifyCodeForm = document.getElementById('verifyCodeForm');
 const verificationCode = document.getElementById('verificationCode');
 const registerMessage = document.getElementById('registerMessage');
+const registerStatus = document.getElementById('registerStatus');
+const otpInputs = Array.from(document.querySelectorAll('.otp-input'));
 
 function showMessage(message, type = 'success') {
   registerMessage.innerHTML = `<div class="alert ${type === 'error' ? 'error' : 'success'}">${message}</div>`;
@@ -39,24 +40,58 @@ function updateSendButtonState() {
   sendCodeBtn.disabled = state.isSending || !state.canSendCode || state.cooldownSeconds > 0;
 
   if (state.isSending) {
-    sendCodeBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Enviando...';
-    cooldownInfo.textContent = 'Enviando codigo al correo...';
+    sendCodeBtn.textContent = 'Enviando...';
     return;
   }
 
   if (state.cooldownSeconds > 0) {
-    sendCodeBtn.innerHTML = `<i class="bi bi-hourglass-split"></i> Reenviar en ${state.cooldownSeconds}s`;
-    cooldownInfo.textContent = `Podras volver a enviar codigo en ${state.cooldownSeconds} segundos.`;
+    sendCodeBtn.textContent = `Reenviar en ${state.cooldownSeconds}s`;
   } else {
-    sendCodeBtn.innerHTML = '<i class="bi bi-send"></i> Enviar codigo';
-    cooldownInfo.textContent = '';
+    sendCodeBtn.textContent = 'Reenviar';
   }
+}
+
+function bindOtpInputs() {
+  otpInputs.forEach((input, index) => {
+    input.addEventListener('input', (event) => {
+      const cleanValue = String(event.target.value || '').replace(/\D/g, '').slice(0, 1);
+      event.target.value = cleanValue;
+
+      if (cleanValue && index < otpInputs.length - 1) {
+        otpInputs[index + 1].focus();
+      }
+    });
+
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Backspace' && !input.value && index > 0) {
+        otpInputs[index - 1].focus();
+      }
+    });
+
+    input.addEventListener('paste', (event) => {
+      const pasted = (event.clipboardData?.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+      if (!pasted) return;
+
+      event.preventDefault();
+      pasted.split('').forEach((digit, offset) => {
+        if (otpInputs[offset]) otpInputs[offset].value = digit;
+      });
+
+      const nextIndex = Math.min(pasted.length, otpInputs.length - 1);
+      otpInputs[nextIndex].focus();
+    });
+  });
+}
+
+function readOtpCode() {
+  return otpInputs.map((input) => input.value.trim()).join('');
 }
 
 function startCooldown(seconds) {
   if (state.timerId) clearInterval(state.timerId);
 
   state.cooldownSeconds = Math.max(0, Number(seconds) || 0);
+  state.canSendCode = state.cooldownSeconds === 0;
   updateSendButtonState();
 
   if (state.cooldownSeconds === 0) return;
@@ -67,6 +102,7 @@ function startCooldown(seconds) {
       clearInterval(state.timerId);
       state.timerId = null;
       state.cooldownSeconds = 0;
+      state.canSendCode = true;
     }
     updateSendButtonState();
   }, 1000);
@@ -74,7 +110,7 @@ function startCooldown(seconds) {
 
 async function loadStatus() {
   const data = await request('/register/status', { email: state.email });
-  state.canSendCode = data.canSendCode;
+  state.canSendCode = Boolean(data.canSendCode);
   startCooldown(data.cooldownRemainingSeconds || 0);
 }
 
@@ -86,9 +122,11 @@ sendCodeBtn.addEventListener('click', async () => {
     updateSendButtonState();
 
     const data = await request('/register/send-code', { email: state.email });
-    showMessage(`${data.message} Expira en 5 minutos.`);
-    verificationCode.focus();
+    registerMessage.innerHTML = '';
+    registerStatus.textContent = 'Codigo enviado. Revisa tu bandeja de entrada.';
+    otpInputs[0]?.focus();
     state.isSending = false;
+    state.canSendCode = false;
     startCooldown(data.cooldownRemainingSeconds || 60);
   } catch (error) {
     state.isSending = false;
@@ -102,6 +140,14 @@ sendCodeBtn.addEventListener('click', async () => {
 verifyCodeForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
+  const code = readOtpCode();
+  if (code.length !== 6) {
+    showMessage('Ingresa los 6 digitos del codigo.', 'error');
+    return;
+  }
+
+  verificationCode.value = code;
+
   try {
     const data = await request('/register/verify-code', {
       email: state.email,
@@ -109,10 +155,17 @@ verifyCodeForm.addEventListener('submit', async (event) => {
     });
 
     showMessage(data.message);
+    registerStatus.textContent = 'Codigo validado correctamente.';
     verificationCode.value = '';
+    otpInputs.forEach((input) => {
+      input.value = '';
+    });
+    otpInputs[0]?.focus();
   } catch (error) {
+    registerStatus.textContent = '';
     showMessage(error.message, 'error');
   }
 });
 
+bindOtpInputs();
 loadStatus().catch((error) => showMessage(error.message, 'error'));

@@ -1,42 +1,48 @@
 <%- include('partials/head', { title: 'Registro | Verificacion' }) %>
 
 <main class="auth-shell">
-  <section class="auth-card glass register-card">
-    <div class="auth-brand">
+  <section class="auth-card glass register-card verify-card">
+    <div class="auth-brand verify-brand">
       <i class="bi bi-shield-check"></i>
-      <h1>Registro - Paso 2</h1>
-      <p>Correo: <strong><%= email %></strong></p>
+      <h1>Verifica tu correo</h1>
+      <p>Te enviamos un codigo de 6 digitos a</p>
+      <p class="verify-email"><strong><%= email %></strong></p>
     </div>
 
     <% if (error) { %>
       <div class="alert error"><i class="bi bi-exclamation-octagon"></i> <%= error %></div>
     <% } %>
 
-    <section id="registerActions" class="auth-form register-actions-one">
-      <div class="register-actions-grid">
-        <button id="sendCodeBtn" class="btn btn-primary" type="button">
-          <i class="bi bi-send"></i>
-          Enviar codigo
-        </button>
+    <form id="verifyCodeForm" class="auth-form verify-form">
+      <div class="otp-grid" id="otpGrid">
+        <input class="otp-input" type="text" inputmode="numeric" maxlength="1" data-index="0" />
+        <input class="otp-input" type="text" inputmode="numeric" maxlength="1" data-index="1" />
+        <input class="otp-input" type="text" inputmode="numeric" maxlength="1" data-index="2" />
+        <input class="otp-input" type="text" inputmode="numeric" maxlength="1" data-index="3" />
+        <input class="otp-input" type="text" inputmode="numeric" maxlength="1" data-index="4" />
+        <input class="otp-input" type="text" inputmode="numeric" maxlength="1" data-index="5" />
       </div>
-      <p class="tiny muted">Si ya cuentas con un codigo, escribelo directamente en el campo de abajo.</p>
-      <p id="cooldownInfo" class="tiny muted"></p>
-    </section>
+      <input type="hidden" id="verificationCode" />
 
-    <form id="verifyCodeForm" class="auth-form">
-      <label>
-        Codigo de verificacion
-        <input type="text" id="verificationCode" maxlength="6" placeholder="123456" required />
-      </label>
-      <button type="submit" class="btn btn-primary">
+      <p class="tiny muted verify-help">Ingresa el codigo de 6 digitos que enviamos a tu correo.</p>
+
+      <button type="submit" class="btn btn-primary verify-submit">
         <i class="bi bi-check2-circle"></i>
         Verificar codigo
       </button>
+
+      <p id="registerStatus" class="verify-status muted"></p>
+
+      <p class="verify-resend muted">
+        No recibiste el codigo?
+        <button id="sendCodeBtn" type="button" class="link-btn">Reenviar</button>
+      </p>
     </form>
 
-    <div id="registerMessage"></div>
+    <div id="registerMessage" class="verify-message"></div>
 
-    <a href="/register" class="btn btn-ghost back-link"><i class="bi bi-arrow-left"></i> Cambiar correo</a>
+    <div class="verify-divider"></div>
+    <a href="/register" class="verify-back-link"><i class="bi bi-arrow-left"></i> Cambiar correo</a>
   </section>
 </main>
 
