@@ -50,6 +50,31 @@ function renderRegister(req, res) {
   });
 }
 
+function renderRegisterCode(req, res) {
+  if (req.session?.user) {
+    return res.redirect('/');
+  }
+
+  const email = normalizeEmail(req.query.email);
+
+  if (!email) {
+    return res.redirect('/register');
+  }
+
+  if (!isAllowedDomain(email)) {
+    return res.status(400).render('register', {
+      allowedDomain: ALLOWED_DOMAIN,
+      error: `Solo se permite el dominio ${ALLOWED_DOMAIN}.`
+    });
+  }
+
+  return res.render('register-code', {
+    allowedDomain: ALLOWED_DOMAIN,
+    email,
+    error: null
+  });
+}
+
 async function login(req, res) {
   try {
     const { username, password } = req.body;
@@ -226,6 +251,7 @@ function logout(req, res) {
 module.exports = {
   renderLogin,
   renderRegister,
+  renderRegisterCode,
   login,
   registrationStatus,
   sendRegisterCode,
