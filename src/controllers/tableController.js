@@ -150,6 +150,17 @@ async function getTableColumns(req, res) {
   }
 }
 
+async function getTableColumnsWithFkOptions(req, res) {
+  try {
+    const { tableName } = req.params;
+    const columns = await tableModel.getColumns(tableName);
+    const fkOptionsByColumn = await tableModel.getForeignKeyOptionsForTable(tableName);
+    return res.json({ columns, fkOptionsByColumn });
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
+}
+
 module.exports = {
   getTables,
   createTable,
@@ -161,5 +172,6 @@ module.exports = {
   getForeignKeys,
   addForeignKey,
   deleteForeignKey,
-  getTableColumns
+  getTableColumns,
+  getTableColumnsWithFkOptions
 };

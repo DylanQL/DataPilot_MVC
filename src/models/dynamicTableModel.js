@@ -225,6 +225,67 @@ async function getForeignKeys(tableName) {
   return rows;
 }
 
+function buildFkOptionLabel(row, referencedColumn, displayColumns) {
+  const value = row[referencedColumn];
+  const details = displayColumns
+    .map((columnName) => `${columnName}: ${row[columnName] ?? ''}`)
+    .join(' | ');
+
+  return details ? `${value} - ${details}` : String(value ?? '');
+}
+
+async function getForeignKeyOptionsForTable(tableName) {
+  assertTableAllowed(tableName);
+
+  const foreignKeys = await getForeignKeys(tableName);
+  if (!foreignKeys.length) {
+    return {};
+  }
+
+  const byColumn = new Map();
+  foreignKeys.forEach((item) => {
+    if (!byColumn.has(item.columnName)) {
+      byColumn.set(item.columnName, item);
+    }
+  });
+
+  const fkOptionsByColumn = {};
+
+  for (const [columnName, fkMeta] of byColumn.entries()) {
+    const referencedTable = fkMeta.referencedTable;
+    const referencedColumn = fkMeta.referencedColumn;
+    const safeReferencedTable = quoteIdentifier(referencedTable);
+    const safeReferencedColumn = quoteIdentifier(referencedColumn);
+
+    const referencedColumns = await getColumns(referencedTable);
+    const displayColumns = referencedColumns
+      .map((column) => column.Field)
+      .filter((field) => field !== referencedColumn)
+      .slice(0, 3);
+
+    const selectedColumns = [referencedColumn, ...displayColumns];
+    const selectedSql = selectedColumns.map((name) => quoteIdentifier(name)).join(', ');
+    const [rows] = await pool.query(
+      `SELECT ${selectedSql}
+       FROM ${safeReferencedTable}
+       ORDER BY ${safeReferencedColumn}
+       LIMIT 200`
+    );
+
+    fkOptionsByColumn[columnName] = {
+      referencedTable,
+      referencedColumn,
+      displayColumns,
+      options: rows.map((row) => ({
+        value: row[referencedColumn],
+        label: buildFkOptionLabel(row, referencedColumn, displayColumns)
+      }))
+    };
+  }
+
+  return fkOptionsByColumn;
+}
+
 async function addForeignKey(tableName, payload) {
   assertTableAllowed(tableName);
 
@@ -314,6 +375,7 @@ module.exports = {
   getRecords,
   addRecord,
   getForeignKeys,
+  getForeignKeyOptionsForTable,
   addForeignKey,
   dropForeignKey,
   deleteRecord,

@@ -46,6 +46,15 @@ function showToast(message, type = 'success') {
   }, 2500);
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function debounce(fn, wait = 300) {
   let timerId = null;
   return (...args) => {
@@ -419,25 +428,48 @@ async function loadRecordFields() {
   if (!tableName) return;
 
   try {
-    const data = await request(`/api/tables/${encodeURIComponent(tableName)}/columns`);
+    const data = await request(`/api/tables/${encodeURIComponent(tableName)}/columns-with-fk-options`);
+    const fkOptionsByColumn = data.fkOptionsByColumn || {};
 
     data.columns
       .filter((column) => column.Field !== 'id')
       .forEach((column) => {
         const sqlType = String(column.Type || '').toLowerCase();
+        const fkConfig = fkOptionsByColumn[column.Field];
         const label = document.createElement('label');
+        const safeFieldName = escapeHtml(column.Field);
+        const safeFieldType = escapeHtml(column.Type);
 
-        let inputHtml = `<input type="text" name="${column.Field}" placeholder="${column.Type}" data-sql-type="text" />`;
+        let inputHtml = `<input type="text" name="${safeFieldName}" placeholder="${safeFieldType}" data-sql-type="text" />`;
+        let helperHtml = '';
 
-        if (sqlType.includes('int') || sqlType.includes('decimal') || sqlType.includes('float') || sqlType.includes('double')) {
-          inputHtml = `<input type="number" name="${column.Field}" placeholder="${column.Type}" data-sql-type="number" />`;
+        if (fkConfig) {
+          const options = Array.isArray(fkConfig.options) ? fkConfig.options : [];
+          const optionItems = options
+            .map((option) => {
+              const value = escapeHtml(option.value);
+              const optionLabel = escapeHtml(option.label);
+              return `<option value="${value}">${optionLabel}</option>`;
+            })
+            .join('');
+
+          inputHtml = `
+            <select name="${safeFieldName}" data-sql-type="${sqlType.includes('int') ? 'number' : 'text'}">
+              <option value="">Selecciona una opcion</option>
+              ${optionItems}
+            </select>
+          `;
+
+          helperHtml = `<small class="muted tiny">FK: ${safeFieldName} -> ${escapeHtml(fkConfig.referencedTable)}.${escapeHtml(fkConfig.referencedColumn)}</small>`;
+        } else if (sqlType.includes('int') || sqlType.includes('decimal') || sqlType.includes('float') || sqlType.includes('double')) {
+          inputHtml = `<input type="number" name="${safeFieldName}" placeholder="${safeFieldType}" data-sql-type="number" />`;
         } else if (sqlType === 'date') {
-          inputHtml = `<input type="date" name="${column.Field}" data-sql-type="date" />`;
+          inputHtml = `<input type="date" name="${safeFieldName}" data-sql-type="date" />`;
         } else if (sqlType.includes('datetime') || sqlType.includes('timestamp')) {
-          inputHtml = `<input type="datetime-local" name="${column.Field}" data-sql-type="datetime" />`;
+          inputHtml = `<input type="datetime-local" name="${safeFieldName}" data-sql-type="datetime" />`;
         } else if (sqlType === 'tinyint(1)' || sqlType.includes('boolean') || sqlType.includes('bool')) {
           inputHtml = `
-            <select name="${column.Field}" data-sql-type="boolean">
+            <select name="${safeFieldName}" data-sql-type="boolean">
               <option value="">Selecciona</option>
               <option value="1">True</option>
               <option value="0">False</option>
@@ -445,7 +477,7 @@ async function loadRecordFields() {
           `;
         }
 
-        label.innerHTML = `${column.Field}${inputHtml}`;
+        label.innerHTML = `${safeFieldName}${inputHtml}${helperHtml}`;
         fieldsWrap.appendChild(label);
       });
   } catch (error) {
