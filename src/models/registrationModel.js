@@ -54,7 +54,7 @@ async function createCodeForEmail(email, code) {
 }
 
 async function markCodeAsUsed(id) {
-  await pool.query('UPDATE registration_codes SET used_at = NOW() WHERE id = ?', [id]);
+  await pool.query('UPDATE registration_codes SET used_at = ? WHERE id = ?', [new Date(), id]);
 }
 
 async function addAttempt(id) {
