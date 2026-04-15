@@ -104,6 +104,20 @@ async function deleteRecord(req, res) {
   }
 }
 
+async function updateRecord(req, res) {
+  try {
+    const { tableName, id } = req.params;
+    const { values } = req.body;
+
+    await tableModel.updateRecord(tableName, id, values);
+    withWsEvent(req, 'record_updated', { tableName, id: Number(id) });
+
+    return res.json({ message: 'Registro actualizado correctamente.' });
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
+}
+
 async function getForeignKeys(req, res) {
   try {
     const { tableName } = req.params;
@@ -168,6 +182,7 @@ module.exports = {
   deleteTable,
   getRecords,
   addRecord,
+  updateRecord,
   deleteRecord,
   getForeignKeys,
   addForeignKey,

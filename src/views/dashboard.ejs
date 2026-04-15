@@ -125,8 +125,12 @@
           Tabla
           <select name="tableName" id="recordTableSelect" required></select>
         </label>
+        <p id="recordFormMode" class="muted tiny">Modo: crear registro</p>
         <div id="recordFields"></div>
-        <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Guardar registro</button>
+        <div class="toolbar-actions">
+          <button id="recordSubmitBtn" type="submit" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Guardar registro</button>
+          <button id="cancelRecordEditBtn" type="button" class="btn btn-ghost hidden"><i class="bi bi-x-circle"></i> Cancelar edicion</button>
+        </div>
       </form>
     </article>
 

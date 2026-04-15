@@ -5,7 +5,9 @@ const state = {
   currentPage: 1,
   pageSize: 10,
   totalPages: 1,
-  currentColumns: []
+  currentColumns: [],
+  currentRows: [],
+  editingRecordId: null
 };
 
 const tableSelect = document.getElementById('tableSelect');
@@ -21,6 +23,9 @@ const prevPageBtn = document.getElementById('prevPage');
 const nextPageBtn = document.getElementById('nextPage');
 const reloadRecordsBtn = document.getElementById('reloadRecordsBtn');
 const pageSizeSelect = document.getElementById('pageSizeSelect');
+const recordFormMode = document.getElementById('recordFormMode');
+const recordSubmitBtn = document.getElementById('recordSubmitBtn');
+const cancelRecordEditBtn = document.getElementById('cancelRecordEditBtn');
 const fkForm = document.getElementById('fkForm');
 const fkDeleteForm = document.getElementById('fkDeleteForm');
 const fkTableSelect = document.getElementById('fkTableSelect');
@@ -137,20 +142,75 @@ function buildTypeOptions(selectEl) {
   selectEl.innerHTML = state.sqlTypes.map((type) => `<option value="${type}">${type}</option>`).join('');
 }
 
-function setMenuNavigation() {
+function activateSection(sectionId) {
   const menuItems = Array.from(document.querySelectorAll('.menu-item'));
   const sectionPanels = Array.from(document.querySelectorAll('.section-panel'));
 
+  menuItems.forEach((item) => item.classList.remove('active'));
+  sectionPanels.forEach((panel) => panel.classList.remove('active'));
+
+  const selectedButton = menuItems.find((button) => button.dataset.section === sectionId);
+  const selectedPanel = document.getElementById(sectionId);
+
+  if (selectedButton) selectedButton.classList.add('active');
+  if (selectedPanel) selectedPanel.classList.add('active');
+}
+
+function setMenuNavigation() {
+  const menuItems = Array.from(document.querySelectorAll('.menu-item'));
+
   menuItems.forEach((button) => {
     button.addEventListener('click', () => {
-      menuItems.forEach((item) => item.classList.remove('active'));
-      sectionPanels.forEach((panel) => panel.classList.remove('active'));
-
-      button.classList.add('active');
-      const panel = document.getElementById(button.dataset.section);
-      if (panel) panel.classList.add('active');
+      activateSection(button.dataset.section);
     });
   });
+}
+
+function normalizeDateInputValue(rawValue) {
+  if (rawValue === null || rawValue === undefined || rawValue === '') return '';
+  if (rawValue instanceof Date && !Number.isNaN(rawValue.getTime())) {
+    return rawValue.toISOString().slice(0, 10);
+  }
+  const value = String(rawValue).trim();
+  return value.length >= 10 ? value.slice(0, 10) : value;
+}
+
+function normalizeDateTimeInputValue(rawValue) {
+  if (rawValue === null || rawValue === undefined || rawValue === '') return '';
+  if (rawValue instanceof Date && !Number.isNaN(rawValue.getTime())) {
+    return rawValue.toISOString().slice(0, 16);
+  }
+  const value = String(rawValue).trim().replace(' ', 'T');
+  return value.length >= 16 ? value.slice(0, 16) : value;
+}
+
+function normalizeInputValue(rawValue, sqlType = 'text') {
+  if (rawValue === null || rawValue === undefined) return '';
+
+  if (sqlType === 'datetime') return normalizeDateTimeInputValue(rawValue);
+  if (sqlType === 'date') return normalizeDateInputValue(rawValue);
+  if (sqlType === 'boolean') return Number(rawValue) ? '1' : '0';
+
+  return String(rawValue);
+}
+
+function setRecordFormMode(mode = 'create', recordId = null) {
+  const isEdit = mode === 'edit' && Number.isInteger(recordId);
+  state.editingRecordId = isEdit ? recordId : null;
+
+  if (recordFormMode) {
+    recordFormMode.textContent = isEdit ? `Modo: editar registro #${recordId}` : 'Modo: crear registro';
+  }
+
+  if (recordSubmitBtn) {
+    recordSubmitBtn.innerHTML = isEdit
+      ? '<i class="bi bi-floppy"></i> Guardar cambios'
+      : '<i class="bi bi-plus-circle"></i> Guardar registro';
+  }
+
+  if (cancelRecordEditBtn) {
+    cancelRecordEditBtn.classList.toggle('hidden', !isEdit);
+  }
 }
 
 function addFilterRow(field = '', value = '') {
@@ -212,6 +272,7 @@ async function loadRecords() {
   if (!state.currentTable) {
     recordsTable.innerHTML = '<tr><td>No hay tabla seleccionada.</td></tr>';
     pageInfo.textContent = 'Sin datos para mostrar';
+    state.currentRows = [];
     updatePaginationControls();
     return;
   }
@@ -232,6 +293,7 @@ async function loadRecords() {
 
     state.totalPages = data.pagination.totalPages;
     state.currentColumns = data.columns || [];
+    state.currentRows = data.data || [];
 
     if (state.currentPage > state.totalPages) {
       state.currentPage = state.totalPages;
@@ -239,11 +301,12 @@ async function loadRecords() {
       return;
     }
 
-    renderRecordsTable(data.columns, data.data);
+    renderRecordsTable(data.columns, state.currentRows);
     pageInfo.textContent = `Pagina ${data.pagination.page} de ${data.pagination.totalPages} (Total: ${data.pagination.total})`;
     updatePaginationControls();
   } catch (error) {
     recordsTable.innerHTML = '<tr><td>No se pudieron cargar los registros.</td></tr>';
+    state.currentRows = [];
     updatePaginationControls();
     showToast(error.message, 'error');
   }
@@ -265,11 +328,38 @@ function renderRecordsTable(columns = [], rows = []) {
 
   const body = rows
     .map(
-      (row) => `<tr>${columns.map((col) => `<td>${row[col] ?? ''}</td>`).join('')}${hasIdColumn ? `<td><button type="button" class="btn btn-danger btn-sm delete-record-btn" data-id="${row.id}"><i class="bi bi-trash3"></i> Eliminar</button></td>` : ''}</tr>`
+      (row) =>
+        `<tr>${columns.map((col) => `<td>${row[col] ?? ''}</td>`).join('')}${
+          hasIdColumn
+            ? `<td>
+                <button type="button" class="btn btn-ghost btn-sm edit-record-btn" data-id="${row.id}"><i class="bi bi-pencil-square"></i> Editar</button>
+                <button type="button" class="btn btn-danger btn-sm delete-record-btn" data-id="${row.id}"><i class="bi bi-trash3"></i> Eliminar</button>
+              </td>`
+            : ''
+        }</tr>`
     )
     .join('');
 
   recordsTable.innerHTML = `${head}<tbody>${body}</tbody>`;
+}
+
+async function handleEditRecordClick(event) {
+  const button = event.target.closest('.edit-record-btn');
+  if (!button) return;
+
+  const recordId = Number(button.dataset.id);
+  if (!state.currentTable || !Number.isInteger(recordId)) return;
+
+  const record = state.currentRows.find((row) => Number(row.id) === recordId);
+  if (!record) {
+    showToast('No se encontro el registro a editar.', 'error');
+    return;
+  }
+
+  recordTableSelect.value = state.currentTable;
+  setRecordFormMode('edit', recordId);
+  await loadRecordFields(record);
+  activateSection('addRecord');
 }
 
 async function handleDeleteRecordClick(event) {
@@ -420,7 +510,7 @@ function setupDeleteTable() {
   });
 }
 
-async function loadRecordFields() {
+async function loadRecordFields(initialValues = {}) {
   const tableName = recordTableSelect.value;
   const fieldsWrap = document.getElementById('recordFields');
 
@@ -479,6 +569,12 @@ async function loadRecordFields() {
 
         label.innerHTML = `${safeFieldName}${inputHtml}${helperHtml}`;
         fieldsWrap.appendChild(label);
+
+        const input = label.querySelector('input, select');
+        const hasInitialValue = Object.prototype.hasOwnProperty.call(initialValues, column.Field);
+        if (input && hasInitialValue) {
+          input.value = normalizeInputValue(initialValues[column.Field], input.dataset.sqlType || 'text');
+        }
       });
   } catch (error) {
     showToast(error.message, 'error');
@@ -644,7 +740,15 @@ function setupForeignKeys() {
 function setupAddRecord() {
   const form = document.getElementById('recordForm');
 
-  recordTableSelect.addEventListener('change', loadRecordFields);
+  recordTableSelect.addEventListener('change', async () => {
+    setRecordFormMode('create');
+    await loadRecordFields();
+  });
+
+  cancelRecordEditBtn?.addEventListener('click', async () => {
+    setRecordFormMode('create');
+    await loadRecordFields();
+  });
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -680,16 +784,21 @@ function setupAddRecord() {
       values[input.name] = rawValue;
     });
 
+    const isEditMode = Number.isInteger(state.editingRecordId);
+    const endpoint = isEditMode
+      ? `/api/tables/${encodeURIComponent(tableName)}/records/${state.editingRecordId}`
+      : `/api/tables/${encodeURIComponent(tableName)}/records`;
+    const method = isEditMode ? 'PUT' : 'POST';
+
     try {
-      await request(`/api/tables/${encodeURIComponent(tableName)}/records`, {
-        method: 'POST',
+      await request(endpoint, {
+        method,
         body: JSON.stringify({ values })
       });
 
-      showToast('Registro agregado correctamente.');
-      form.querySelectorAll('#recordFields input').forEach((input) => {
-        input.value = '';
-      });
+      showToast(isEditMode ? 'Registro actualizado correctamente.' : 'Registro agregado correctamente.');
+      setRecordFormMode('create');
+      await loadRecordFields();
 
       if (tableName === state.currentTable) {
         await loadRecords();
@@ -702,12 +811,14 @@ function setupAddRecord() {
 
 function setupSelectTable() {
   recordsTable.addEventListener('click', (event) => {
+    handleEditRecordClick(event);
     handleDeleteRecordClick(event);
   });
 
   tableSelect.addEventListener('change', async () => {
     state.currentTable = tableSelect.value;
     recordTableSelect.value = state.currentTable;
+    setRecordFormMode('create');
     state.currentPage = 1;
     filtersContainer.innerHTML = '';
     await loadRecordFields();
@@ -784,6 +895,7 @@ async function refreshTables() {
     filtersContainer.innerHTML = '';
     document.getElementById('recordFields').innerHTML = '';
     state.currentColumns = [];
+    state.currentRows = [];
     state.currentPage = 1;
     state.totalPages = 1;
     updatePaginationControls();
@@ -801,7 +913,7 @@ function initWebSocket() {
 
     if (!message?.type) return;
 
-    if (['table_created', 'table_edited', 'table_deleted', 'record_added', 'record_deleted', 'fk_created', 'fk_deleted'].includes(message.type)) {
+    if (['table_created', 'table_edited', 'table_deleted', 'record_added', 'record_updated', 'record_deleted', 'fk_created', 'fk_deleted'].includes(message.type)) {
       await refreshTables();
       await loadRecordFields();
       await loadRecords();

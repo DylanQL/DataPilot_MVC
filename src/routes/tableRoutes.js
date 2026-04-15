@@ -14,6 +14,7 @@ router.get('/tables/:tableName/columns', tableController.getTableColumns);
 router.get('/tables/:tableName/columns-with-fk-options', tableController.getTableColumnsWithFkOptions);
 router.get('/tables/:tableName/records', tableController.getRecords);
 router.post('/tables/:tableName/records', tableController.addRecord);
+router.put('/tables/:tableName/records/:id', tableController.updateRecord);
 router.delete('/tables/:tableName/records/:id', tableController.deleteRecord);
 router.get('/tables/:tableName/foreign-keys', tableController.getForeignKeys);
 router.post('/tables/:tableName/foreign-keys', tableController.addForeignKey);

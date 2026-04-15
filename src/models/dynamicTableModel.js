@@ -186,6 +186,43 @@ async function addRecord(tableName, payload) {
   return result.insertId;
 }
 
+async function updateRecord(tableName, id, payload) {
+  assertTableAllowed(tableName);
+
+  const numericId = Number(id);
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    throw new Error('ID de registro invalido.');
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Registro invalido.');
+  }
+
+  const safeTable = quoteIdentifier(tableName);
+  const columns = await getColumns(tableName);
+  const allowed = new Set(columns.map((column) => column.Field));
+
+  const entries = Object.entries(payload).filter(([key, value]) => key !== 'id' && allowed.has(key) && value !== undefined);
+
+  if (!entries.length) {
+    throw new Error('No hay campos validos para actualizar.');
+  }
+
+  const setSql = entries.map(([key]) => `${quoteIdentifier(key)} = ?`).join(', ');
+  const values = entries.map(([, value]) => value);
+
+  const [result] = await pool.query(
+    `UPDATE ${safeTable}
+     SET ${setSql}
+     WHERE id = ?`,
+    [...values, numericId]
+  );
+
+  if (!result.affectedRows) {
+    throw new Error('No se encontro el registro a actualizar.');
+  }
+}
+
 function normalizeForeignKeyRule(value, fallback) {
   const normalized = String(value || fallback || 'RESTRICT').toUpperCase().trim();
   if (!ALLOWED_FK_RULES.has(normalized)) {
@@ -374,6 +411,7 @@ module.exports = {
   dropColumn,
   getRecords,
   addRecord,
+  updateRecord,
   getForeignKeys,
   getForeignKeyOptionsForTable,
   addForeignKey,
