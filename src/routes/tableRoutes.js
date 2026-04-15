@@ -13,5 +13,6 @@ router.delete('/tables/:tableName', tableController.deleteTable);
 router.get('/tables/:tableName/columns', tableController.getTableColumns);
 router.get('/tables/:tableName/records', tableController.getRecords);
 router.post('/tables/:tableName/records', tableController.addRecord);
+router.delete('/tables/:tableName/records/:id', tableController.deleteRecord);
 
 module.exports = router;

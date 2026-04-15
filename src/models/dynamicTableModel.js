@@ -184,6 +184,22 @@ async function addRecord(tableName, payload) {
   return result.insertId;
 }
 
+async function deleteRecord(tableName, id) {
+  assertTableAllowed(tableName);
+
+  const numericId = Number(id);
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    throw new Error('ID de registro invalido.');
+  }
+
+  const safeTable = quoteIdentifier(tableName);
+  const [result] = await pool.query(`DELETE FROM ${safeTable} WHERE id = ?`, [numericId]);
+
+  if (!result.affectedRows) {
+    throw new Error('No se encontro el registro a eliminar.');
+  }
+}
+
 module.exports = {
   listTables,
   getColumns,
@@ -194,5 +210,6 @@ module.exports = {
   dropColumn,
   getRecords,
   addRecord,
+  deleteRecord,
   ALLOWED_TYPES: Array.from(ALLOWED_TYPES)
 };

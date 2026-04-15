@@ -197,20 +197,43 @@ function renderRecordsTable(columns = [], rows = []) {
     return;
   }
 
-  const head = `<thead><tr>${columns.map((col) => `<th>${col}</th>`).join('')}</tr></thead>`;
+  const hasIdColumn = columns.includes('id');
+  const head = `<thead><tr>${columns.map((col) => `<th>${col}</th>`).join('')}${hasIdColumn ? '<th>Acciones</th>' : ''}</tr></thead>`;
 
   if (!rows.length) {
-    recordsTable.innerHTML = `${head}<tbody><tr><td colspan="${columns.length}">No hay registros para mostrar.</td></tr></tbody>`;
+    recordsTable.innerHTML = `${head}<tbody><tr><td colspan="${columns.length + (hasIdColumn ? 1 : 0)}">No hay registros para mostrar.</td></tr></tbody>`;
     return;
   }
 
   const body = rows
     .map(
-      (row) => `<tr>${columns.map((col) => `<td>${row[col] ?? ''}</td>`).join('')}</tr>`
+      (row) => `<tr>${columns.map((col) => `<td>${row[col] ?? ''}</td>`).join('')}${hasIdColumn ? `<td><button type="button" class="btn btn-danger btn-sm delete-record-btn" data-id="${row.id}"><i class="bi bi-trash3"></i> Eliminar</button></td>` : ''}</tr>`
     )
     .join('');
 
   recordsTable.innerHTML = `${head}<tbody>${body}</tbody>`;
+}
+
+async function handleDeleteRecordClick(event) {
+  const button = event.target.closest('.delete-record-btn');
+  if (!button) return;
+
+  const recordId = Number(button.dataset.id);
+  if (!state.currentTable || !Number.isInteger(recordId)) return;
+
+  const ok = await openDeleteModal(`registro #${recordId} de ${state.currentTable}`);
+  if (!ok) return;
+
+  try {
+    await request(`/api/tables/${encodeURIComponent(state.currentTable)}/records/${recordId}`, {
+      method: 'DELETE'
+    });
+
+    showToast('Registro eliminado correctamente.');
+    await loadRecords();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
 }
 
 function createColumnRow() {
@@ -398,6 +421,10 @@ function setupAddRecord() {
 }
 
 function setupSelectTable() {
+  recordsTable.addEventListener('click', (event) => {
+    handleDeleteRecordClick(event);
+  });
+
   tableSelect.addEventListener('change', async () => {
     state.currentTable = tableSelect.value;
     state.currentPage = 1;
@@ -457,7 +484,7 @@ function initWebSocket() {
 
     if (!message?.type) return;
 
-    if (['table_created', 'table_edited', 'table_deleted', 'record_added'].includes(message.type)) {
+    if (['table_created', 'table_edited', 'table_deleted', 'record_added', 'record_deleted'].includes(message.type)) {
       await refreshTables();
       await loadRecordFields();
       await loadRecords();

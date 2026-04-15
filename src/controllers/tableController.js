@@ -91,6 +91,19 @@ async function addRecord(req, res) {
   }
 }
 
+async function deleteRecord(req, res) {
+  try {
+    const { tableName, id } = req.params;
+
+    await tableModel.deleteRecord(tableName, id);
+    withWsEvent(req, 'record_deleted', { tableName, id: Number(id) });
+
+    return res.json({ message: 'Registro eliminado correctamente.' });
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
+}
+
 async function getTableColumns(req, res) {
   try {
     const { tableName } = req.params;
@@ -108,5 +121,6 @@ module.exports = {
   deleteTable,
   getRecords,
   addRecord,
+  deleteRecord,
   getTableColumns
 };
